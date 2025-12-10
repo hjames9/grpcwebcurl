@@ -1,0 +1,33 @@
+# Binaries
+grpcwebcurl
+!cmd/grpcwebcurl/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build directory
+build
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
