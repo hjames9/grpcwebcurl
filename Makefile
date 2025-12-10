@@ -142,7 +142,16 @@ release: clean ## Create draft GitHub release with binaries
 	@echo "Draft release v$(VERSION) created!"
 	@echo "Review and publish with: make release-publish"
 
-release-publish: ## Publish the draft release
+release-publish: ## Publish the draft release and push git tag
+	@echo "Creating and pushing git tag v$(VERSION)..."
+	@if git rev-parse v$(VERSION) >/dev/null 2>&1; then \
+		echo "  Tag v$(VERSION) already exists locally"; \
+	else \
+		git tag -a v$(VERSION) -m "Release v$(VERSION)"; \
+		echo "  Created tag v$(VERSION)"; \
+	fi
+	@git push origin v$(VERSION) 2>/dev/null || echo "  Tag v$(VERSION) already pushed or push failed"
+	@echo ""
 	@echo "Publishing GitHub release v$(VERSION)..."
 	@$(GHCMD) release edit v$(VERSION) \
 		--repo $(GITHUB_REPO) \
