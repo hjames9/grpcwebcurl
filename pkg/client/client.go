@@ -190,12 +190,22 @@ func (client *Client) Invoke(ctx context.Context, req *Request) (*Response, erro
 
 	// Set custom headers from client
 	for key, value := range client.headers {
-		httpReq.Header.Set(key, value)
+		// Special handling for Host header - must set req.Host field
+		if strings.EqualFold(key, "Host") {
+			httpReq.Host = value
+		} else {
+			httpReq.Header.Set(key, value)
+		}
 	}
 
 	// Set custom headers from request
 	for key, value := range req.Headers {
-		httpReq.Header.Set(key, value)
+		// Special handling for Host header - must set req.Host field
+		if strings.EqualFold(key, "Host") {
+			httpReq.Host = value
+		} else {
+			httpReq.Header.Set(key, value)
+		}
 	}
 
 	if client.verbose {
@@ -291,12 +301,22 @@ func (client *Client) InvokeServerStream(ctx context.Context, req *Request, hand
 
 	// Set custom headers from client
 	for key, value := range client.headers {
-		httpReq.Header.Set(key, value)
+		// Special handling for Host header - must set req.Host field
+		if strings.EqualFold(key, "Host") {
+			httpReq.Host = value
+		} else {
+			httpReq.Header.Set(key, value)
+		}
 	}
 
 	// Set custom headers from request
 	for key, value := range req.Headers {
-		httpReq.Header.Set(key, value)
+		// Special handling for Host header - must set req.Host field
+		if strings.EqualFold(key, "Host") {
+			httpReq.Host = value
+		} else {
+			httpReq.Header.Set(key, value)
+		}
 	}
 
 	if client.verbose {
