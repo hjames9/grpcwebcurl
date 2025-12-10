@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -37,6 +38,9 @@ type Options struct {
 	KeyFile    string // Client key file
 	CAFile     string // CA certificate file
 	ServerName string // Override server name for TLS
+
+	// Connection options
+	Resolve string // Resolve host:port to address (e.g., example.com:443:127.0.0.1)
 
 	// Timeouts
 	Timeout        time.Duration // Total request timeout
@@ -71,6 +75,15 @@ func NewClient(baseURL string, opts *Options) (*Client, error) {
 		IdleConnTimeout:     90 * time.Second,
 		DisableCompression:  false,
 		ForceAttemptHTTP2:   true,
+	}
+
+	// Configure custom dialer if --resolve is specified
+	if opts.Resolve != "" {
+		dialer, err := createCustomDialer(opts.Resolve, opts.ConnectTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse --resolve: %w", err)
+		}
+		transport.DialContext = dialer
 	}
 
 	// Configure TLS unless plaintext mode
@@ -132,6 +145,35 @@ func configureTLS(opts *Options) (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
+}
+
+// createCustomDialer creates a custom dialer that overrides DNS resolution for a specific host:port.
+// The resolve format is: host:port:address (e.g., example.com:443:127.0.0.1)
+func createCustomDialer(resolve string, timeout time.Duration) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
+	// Parse the resolve string: host:port:address
+	parts := strings.Split(resolve, ":")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid --resolve format: expected host:port:address, got %q", resolve)
+	}
+
+	targetHost := parts[0]
+	targetPort := parts[1]
+	resolveAddr := parts[2]
+	targetHostPort := net.JoinHostPort(targetHost, targetPort)
+
+	// Create a custom dialer
+	dialer := &net.Dialer{
+		Timeout: timeout,
+	}
+
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// If the address matches our target host:port, use the resolved address
+		if addr == targetHostPort {
+			// Replace with the resolved address but keep the port
+			addr = net.JoinHostPort(resolveAddr, targetPort)
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}, nil
 }
 
 // SetHeader sets a custom header for all requests.

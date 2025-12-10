@@ -106,6 +106,7 @@ grpcwebcurl --plaintext \
 | `--cert` | | Client certificate file |
 | `--key` | | Client private key file |
 | `--cacert` | | CA certificate file |
+| `--resolve` | | Resolve host:port to address (e.g., example.com:443:127.0.0.1) |
 | `--connect-timeout` | | Connection timeout (default: 10s) |
 | `--max-time` | | Request timeout (default: 30s) |
 | `--max-msg-sz` | | Max message size (default: 16MB) |
@@ -173,6 +174,15 @@ grpcwebcurl \
   --cacert ca.crt \
   -d '{"id": "123"}' \
   https://api.example.com:443 \
+  mypackage.Service/Method
+
+# Custom DNS resolution with TLS verification
+# Useful for testing with custom IP while keeping hostname verification
+grpcwebcurl --cacert ca.crt \
+  -H 'Host: dev.api.example.com' \
+  --resolve api.example.com:443:172.1.230.150 \
+  -d '{"id": "123"}' \
+  https://api.example.com \
   mypackage.Service/Method
 ```
 

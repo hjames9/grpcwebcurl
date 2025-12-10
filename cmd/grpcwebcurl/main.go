@@ -33,6 +33,7 @@ var (
 	certFile       string
 	keyFile        string
 	caFile         string
+	resolve        string
 	connectTimeout time.Duration
 	timeout        time.Duration
 	maxMsgSize     int
@@ -96,6 +97,7 @@ Examples:
 	rootCmd.PersistentFlags().StringVar(&certFile, "cert", "", "Client certificate file")
 	rootCmd.PersistentFlags().StringVar(&keyFile, "key", "", "Client private key file")
 	rootCmd.PersistentFlags().StringVar(&caFile, "cacert", "", "CA certificate file")
+	rootCmd.PersistentFlags().StringVar(&resolve, "resolve", "", "Resolve host:port to address (e.g., example.com:443:127.0.0.1)")
 
 	// Timeout flags (persistent for subcommands)
 	rootCmd.PersistentFlags().DurationVar(&connectTimeout, "connect-timeout", 10*time.Second, "Connection timeout")
@@ -157,6 +159,7 @@ func createClient(address string) (*client.Client, error) {
 		CertFile:       certFile,
 		KeyFile:        keyFile,
 		CAFile:         caFile,
+		Resolve:        resolve,
 		Timeout:        timeout,
 		ConnectTimeout: connectTimeout,
 		MaxMessageSize: maxMsgSize,
