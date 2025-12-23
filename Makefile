@@ -5,7 +5,7 @@ BINARY_NAME=grpcwebcurl
 
 # Go parameters
 GOCMD=go
-GOBUILD=$(GOCMD) build
+GOBUILD=CGO_ENABLED=0 $(GOCMD) build
 GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 GOVET=$(GOCMD) vet
@@ -22,7 +22,7 @@ VERSION_MINOR=$(shell echo $(VERSION) | cut -d. -f2)
 VERSION_PATCH=$(shell echo $(VERSION) | cut -d. -f3)
 GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS=-ldflags "-X main.version=$(VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.buildTime=$(BUILD_TIME)"
+LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.buildTime=$(BUILD_TIME)"
 
 # Platforms for cross-compilation
 PLATFORMS=linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
