@@ -18,7 +18,75 @@ A command-line tool for testing gRPC-Web endpoints, similar to [grpcurl](https:/
 
 ## Installation
 
+### Homebrew (macOS)
+
+The easiest way to install on macOS:
+
+```bash
+brew install hjames9/grpcwebcurl/grpcwebcurl
+```
+
+This will install the binary and shell completions automatically.
+
+### Prebuilt Binaries
+
+Download the latest release for your platform from the [releases page](https://github.com/hjames9/grpcwebcurl/releases).
+
+#### Linux
+
+```bash
+# Download the latest release
+curl -LO https://github.com/hjames9/grpcwebcurl/releases/download/v0.2.1/grpcwebcurl-v0.2.1-linux-amd64
+
+# Make executable
+chmod +x grpcwebcurl-v0.2.1-linux-amd64
+
+# Move to PATH
+sudo mv grpcwebcurl-v0.2.1-linux-amd64 /usr/local/bin/grpcwebcurl
+
+# Verify installation
+grpcwebcurl --version
+```
+
+For ARM64 Linux, use `grpcwebcurl-v0.2.1-linux-arm64`.
+
+#### macOS
+
+```bash
+# For Apple Silicon (M1/M2/M3)
+curl -LO https://github.com/hjames9/grpcwebcurl/releases/download/v0.2.1/grpcwebcurl-v0.2.1-darwin-arm64
+
+# For Intel Macs
+# curl -LO https://github.com/hjames9/grpcwebcurl/releases/download/v0.2.1/grpcwebcurl-v0.2.1-darwin-amd64
+
+# Make executable
+chmod +x grpcwebcurl-v0.2.1-darwin-arm64
+
+# Move to PATH
+sudo mv grpcwebcurl-v0.2.1-darwin-arm64 /usr/local/bin/grpcwebcurl
+
+# Verify installation
+grpcwebcurl --version
+```
+
+#### Windows
+
+Download the `.exe` file from the [releases page](https://github.com/hjames9/grpcwebcurl/releases):
+- `grpcwebcurl-v0.2.1-windows-amd64.exe` for Intel/AMD
+- `grpcwebcurl-v0.2.1-windows-arm64.exe` for ARM
+
+Add the binary to your PATH or run it directly.
+
+#### Available Platforms
+
+All releases include binaries for:
+- Linux (amd64, arm64)
+- macOS (amd64, arm64)
+- Windows (amd64, arm64)
+
 ### From Source
+
+If you have Go installed, you can build from source:
 
 ```bash
 # Clone the repository
@@ -30,16 +98,10 @@ make build
 
 # Install to GOPATH/bin
 make install
+
+# Or just install directly
+go install github.com/hjames9/grpcwebcurl/cmd/grpcwebcurl@latest
 ```
-
-### Pre-built Binaries
-
-Download pre-built binaries from the [Releases](https://github.com/hjames9/grpcwebcurl/releases) page.
-
-Available platforms:
-- Linux (amd64, arm64)
-- macOS (amd64, arm64)
-- Windows (amd64, arm64)
 
 ### Cross-compile All Platforms
 
