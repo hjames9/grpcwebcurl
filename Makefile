@@ -34,9 +34,9 @@ GITHUB_REPO?=hjames9/grpcwebcurl
         tidy deps install clean run version bump-major bump-minor bump-patch \
         release release-publish help
 
-all: fmt vet test build ## Build after formatting, vetting, and testing
+all: help ## Show usage (default target)
 
-build: ## Build the binary to build/ directory
+build: fmt vet ## Build the binary to build/ directory
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/grpcwebcurl/
