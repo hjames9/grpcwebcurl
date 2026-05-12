@@ -378,6 +378,162 @@ func TestClientInvokeURLConstruction(test *testing.T) {
 	}
 }
 
+// TestClientInvokeGRPCErrorInHTTPHeaders covers the case where a proxy (e.g. Envoy)
+// returns HTTP 200 with gRPC status in response headers rather than a trailer frame.
+// This was a bug where the error was silently swallowed and the tool exited 0.
+func TestClientInvokeGRPCErrorInHTTPHeaders(test *testing.T) {
+	tests := []struct {
+		name        string
+		statusCode  string
+		message     string
+		wantCode    int
+		wantMessage string
+	}{
+		{
+			name:        "not found via HTTP headers",
+			statusCode:  "5",
+			message:     "device not found",
+			wantCode:    5,
+			wantMessage: "device not found",
+		},
+		{
+			name:        "unauthenticated via HTTP headers",
+			statusCode:  "16",
+			message:     "missing credentials",
+			wantCode:    16,
+			wantMessage: "missing credentials",
+		},
+		{
+			name:       "non-zero status with no message",
+			statusCode: "13",
+			message:    "",
+			wantCode:   13,
+		},
+	}
+
+	for _, tt := range tests {
+		test.Run(tt.name, func(test *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", protocol.ContentTypeGRPCWeb)
+				w.Header().Set("Grpc-Status", tt.statusCode)
+				if tt.message != "" {
+					w.Header().Set("Grpc-Message", tt.message)
+				}
+				w.WriteHeader(http.StatusOK)
+				// Empty body — no trailer frame
+			}))
+			defer server.Close()
+
+			c, err := NewClient(server.URL, &Options{Plaintext: true})
+			if err != nil {
+				test.Fatalf("NewClient() error = %v", err)
+			}
+
+			resp, err := c.Invoke(context.Background(), &Request{
+				Service: "test.Service",
+				Method:  "TestMethod",
+				Message: []byte{},
+			})
+
+			if err != nil {
+				test.Fatalf("Invoke() unexpected error = %v", err)
+			}
+			if resp.Status == nil {
+				test.Fatal("Status is nil; want non-nil for gRPC error in HTTP headers")
+			}
+			if resp.Status.Code != tt.wantCode {
+				test.Errorf("Status.Code = %d, want %d", resp.Status.Code, tt.wantCode)
+			}
+			if resp.Status.Message != tt.wantMessage {
+				test.Errorf("Status.Message = %q, want %q", resp.Status.Message, tt.wantMessage)
+			}
+			if resp.Trailers["grpc-status"] != tt.statusCode {
+				test.Errorf("Trailers[grpc-status] = %q, want %q", resp.Trailers["grpc-status"], tt.statusCode)
+			}
+		})
+	}
+}
+
+// TestClientInvokeBodyTrailerTakesPrecedence verifies that a status from a
+// trailer frame in the response body is not overwritten by HTTP header values.
+func TestClientInvokeBodyTrailerTakesPrecedence(test *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", protocol.ContentTypeGRPCWeb)
+		// HTTP header says status 0 (OK), but the trailer frame says 3
+		w.Header().Set("Grpc-Status", "0")
+		w.WriteHeader(http.StatusOK)
+
+		trailer := []byte("grpc-status: 3\r\ngrpc-message: body trailer wins\r\n")
+		w.Write([]byte{0x80, 0x00, 0x00, 0x00, byte(len(trailer))})
+		w.Write(trailer)
+	}))
+	defer server.Close()
+
+	c, err := NewClient(server.URL, &Options{Plaintext: true})
+	if err != nil {
+		test.Fatalf("NewClient() error = %v", err)
+	}
+
+	resp, err := c.Invoke(context.Background(), &Request{
+		Service: "test.Service",
+		Method:  "TestMethod",
+		Message: []byte{},
+	})
+
+	if err != nil {
+		test.Fatalf("Invoke() unexpected error = %v", err)
+	}
+	if resp.Status == nil {
+		test.Fatal("Status is nil")
+	}
+	if resp.Status.Code != 3 {
+		test.Errorf("Status.Code = %d, want 3 (body trailer should take precedence)", resp.Status.Code)
+	}
+	if resp.Status.Message != "body trailer wins" {
+		test.Errorf("Status.Message = %q, want %q", resp.Status.Message, "body trailer wins")
+	}
+}
+
+// TestInvokeServerStreamGRPCErrorInHTTPHeaders mirrors the Invoke test for
+// server-streaming calls, covering the same Envoy proxy behaviour.
+func TestInvokeServerStreamGRPCErrorInHTTPHeaders(test *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", protocol.ContentTypeGRPCWeb)
+		w.Header().Set("Grpc-Status", "5")
+		w.Header().Set("Grpc-Message", "resource not found")
+		w.WriteHeader(http.StatusOK)
+		// Empty body — no frames at all
+	}))
+	defer server.Close()
+
+	c, err := NewClient(server.URL, &Options{Plaintext: true})
+	if err != nil {
+		test.Fatalf("NewClient() error = %v", err)
+	}
+
+	resp, err := c.InvokeServerStream(context.Background(), &Request{
+		Service: "test.Service",
+		Method:  "TestMethod",
+		Message: []byte{},
+	}, nil)
+
+	if err != nil {
+		test.Fatalf("InvokeServerStream() unexpected error = %v", err)
+	}
+	if resp.Status == nil {
+		test.Fatal("Status is nil; want non-nil for gRPC error in HTTP headers")
+	}
+	if resp.Status.Code != 5 {
+		test.Errorf("Status.Code = %d, want 5", resp.Status.Code)
+	}
+	if resp.Status.Message != "resource not found" {
+		test.Errorf("Status.Message = %q, want %q", resp.Status.Message, "resource not found")
+	}
+	if resp.Trailers["grpc-status"] != "5" {
+		test.Errorf("Trailers[grpc-status] = %q, want %q", resp.Trailers["grpc-status"], "5")
+	}
+}
+
 func TestOptionsWithCertificates(test *testing.T) {
 	// Test that certificate options are accepted (we can't test actual TLS without real certs)
 	opts := &Options{

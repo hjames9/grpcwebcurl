@@ -302,6 +302,24 @@ func (client *Client) Invoke(ctx context.Context, req *Request) (*Response, erro
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	// Some proxies (e.g. Envoy) send gRPC trailers as HTTP response headers on
+	// error instead of in a trailer frame, especially when the body is empty.
+	if decoded.Status == nil {
+		code, msg := protocol.GetGRPCStatus(httpResp)
+		if code != 0 || msg != "" {
+			decoded.Status = &protocol.Status{Code: code, Message: msg}
+			if decoded.Trailers == nil {
+				decoded.Trailers = make(map[string]string)
+			}
+			if s := httpResp.Header.Get(protocol.HeaderGRPCStatus); s != "" {
+				decoded.Trailers["grpc-status"] = s
+			}
+			if msg != "" {
+				decoded.Trailers["grpc-message"] = msg
+			}
+		}
+	}
+
 	return &Response{
 		Messages:    decoded.Messages,
 		Trailers:    decoded.Trailers,
@@ -455,9 +473,21 @@ func (client *Client) InvokeServerStream(ctx context.Context, req *Request, hand
 		}
 	}
 
-	// Default to OK status if not set
+	// Default to OK status if not set; check HTTP headers first for proxies
+	// that send gRPC trailers as response headers (e.g. Envoy on error).
 	if status == nil {
-		status = &protocol.Status{Code: 0}
+		code, msg := protocol.GetGRPCStatus(httpResp)
+		if code != 0 || msg != "" {
+			status = &protocol.Status{Code: code, Message: msg}
+			if s := httpResp.Header.Get(protocol.HeaderGRPCStatus); s != "" {
+				trailers["grpc-status"] = s
+			}
+			if msg != "" {
+				trailers["grpc-message"] = msg
+			}
+		} else {
+			status = &protocol.Status{Code: 0}
+		}
 	}
 
 	return &Response{
